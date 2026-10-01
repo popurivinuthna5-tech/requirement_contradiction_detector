@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Requirement Conflict & Overlap Analyzer | Enterprise AI Specification Auditing</title>
+  <meta name="description" content="AI-powered software requirement analysis system for detecting contradictions, semantic overlaps, duplicates, and ambiguities across SRS, BRD, and PRD documents.">
+
+  <!-- Google Fonts: Inter & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- Chart.js for Visualizations -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+
+  <!-- Stylesheets -->
+  <link rel="stylesheet" href="/static/css/main.css">
+  <link rel="stylesheet" href="/static/css/components.css">
+</head>
+<body>
+
+  <!-- Full Application Container -->
+  <div class="app-container" id="app">
+    
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <div class="brand-icon">
+          <i data-lucide="git-pull-request"></i>
+        </div>
+        <div class="brand-text">
+          <h1>ReqConflict AI</h1>
+          <p>Enterprise Auditor</p>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <a class="nav-link active" data-page="dashboard" id="nav-dashboard">
+          <i data-lucide="layout-dashboard"></i>
+          <span>Dashboard</span>
+        </a>
+        <a class="nav-link" data-page="documents" id="nav-documents">
+          <i data-lucide="folder-git-2"></i>
+          <span>Documents</span>
+        </a>
+        <a class="nav-link" data-page="requirements" id="nav-requirements">
+          <i data-lucide="list-checks"></i>
+          <span>Requirements</span>
+        </a>
+        <a class="nav-link" data-page="conflicts" id="nav-conflicts">
+          <i data-lucide="alert-triangle"></i>
+          <span>Conflict Analysis</span>
+        </a>
+        <a class="nav-link" data-page="reports" id="nav-reports">
+          <i data-lucide="file-text"></i>
+          <span>Conflict Reports</span>
+        </a>
+        <a class="nav-link" data-page="settings" id="nav-settings">
+          <i data-lucide="sliders"></i>
+          <span>Settings</span>
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="user-profile-card">
+          <div class="user-avatar" id="user-avatar-display">
+            <span>U</span>
+          </div>
+          <div class="user-details">
+            <div class="user-name" id="user-name-display">Demo Analyst</div>
+            <div class="user-provider" id="user-provider-display">
+              <i data-lucide="shield-check" style="width: 12px; height: 12px;"></i>
+              <span>Google Verified</span>
+            </div>
+          </div>
+          <button class="btn-signout" id="btn-logout" title="Sign Out">
+            <i data-lucide="log-out" style="width: 16px; height: 16px;"></i>
+          </button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content Wrapper -->
+    <div class="main-wrapper">
+      
+      <!-- Top Navigation Bar -->
+      <header class="topbar">
+        <div class="topbar-title">
+          <h2 id="topbar-page-title">Dashboard Overview</h2>
+        </div>
+        <div class="topbar-actions">
+          <button class="btn btn-demo" id="btn-load-demo-topbar">
+            <i data-lucide="sparkles" style="width: 16px; height: 16px;"></i>
+            <span>Load Demo Workspace</span>
+          </button>
+          <button class="btn btn-secondary" id="btn-quick-upload">
+            <i data-lucide="upload-cloud" style="width: 16px; height: 16px;"></i>
+            <span>Upload Document</span>
+          </button>
+          <button class="btn btn-primary" id="btn-trigger-analysis">
+            <i data-lucide="zap" style="width: 16px; height: 16px;"></i>
+            <span>Run Conflict Analysis</span>
+          </button>
+        </div>
+      </header>
+
+      <!-- Content Area -->
+      <main class="content-area">
+
+        <!-- 1. DASHBOARD VIEW -->
+        <section class="page-view active" id="view-dashboard">
+          <div class="page-header">
+            <div class="page-header-text">
+              <h3>Specification Health & Conflict Intelligence</h3>
+              <p>Real-time semantic telemetry across uploaded software requirements documents.</p>
+            </div>
+          </div>
+
+          <!-- Stats Cards Grid -->
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-header">
+                <span class="stat-title">Documents</span>
+                <div class="stat-icon"><i data-lucide="files"></i></div>
+              </div>
+              <div class="stat-value" id="stat-documents">0</div>
+              <div class="stat-subtitle">SRS, BRD, and FRDs uploaded</div>
+            </div>
+
+            <div class="stat-card">
+              <div class="stat-header">
+                <span class="stat-title">Requirements</span>
+                <div class="stat-icon"><i data-lucide="list-tree"></i></div>
+              </div>
+              <div class="stat-value" id="stat-requirements">0</div>
+              <div class="stat-subtitle">Parsed and indexed clauses</div>
+            </div>
+
+            <div class="stat-card">
+              <div class="stat-header">
+                <span class="stat-title">Detected Findings</span>
+                <div class="stat-icon"><i data-lucide="git-commit"></i></div>
+              </div>
+              <div class="stat-value" id="stat-relationships">0</div>
+              <div class="stat-subtitle">Contradictions & overlaps</div>
+            </div>
+
+            <div class="stat-card critical">
+              <div class="stat-header">
+                <span class="stat-title">Critical Conflicts</span>
+                <div class="stat-icon" style="color: var(--sev-critical);"><i data-lucide="flame"></i></div>
+              </div>
+              <div class="stat-value" id="stat-critical" style="color: #f87171;">0</div>
+              <div class="stat-subtitle">Direct logic contradictions</div>
+            </div>
+
+            <div class="stat-card overlap">
+              <div class="stat-header">
+                <span class="stat-title">Semantic Overlaps</span>
+                <div class="stat-icon" style="color: var(--accent-cyan);"><i data-lucide="layers"></i></div>
+              </div>
+              <div class="stat-value" id="stat-overlaps" style="color: #38bdf8;">0</div>
+              <div class="stat-subtitle">Shared business workflows</div>
+            </div>
+          </div>
+
+          <!-- Charts Grid -->
+          <div class="charts-grid">
+            <div class="chart-card">
+              <div class="chart-card-header">
+                <h4>Conflicts by Severity</h4>
+              </div>
+              <div class="chart-canvas-wrapper">
+                <canvas id="chart-severity"></canvas>
+              </div>
+            </div>
+
+            <div class="chart-card">
+              <div class="chart-card-header">
+                <h4>Findings by Relationship Type</h4>
+              </div>
+              <div class="chart-canvas-wrapper">
+                <canvas id="chart-type"></canvas>
+              </div>
+            </div>
+
+            <div class="chart-card">
+              <div class="chart-card-header">
+                <h4>Findings by Source Document</h4>
+              </div>
+              <div class="chart-canvas-wrapper">
+                <canvas id="chart-document"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <!-- Recent Critical Findings Preview Table -->
+          <div class="table-container">
+            <div class="table-toolbar">
+              <h4 style="font-size: 1rem; font-weight: 700; color: #fff;">Priority Conflicts Requiring Resolution</h4>
+              <button class="btn btn-secondary btn-sm" onclick="navigateTo('conflicts')">
+                <span>View All Findings</span>
+                <i data-lucide="arrow-right" style="width: 14px; height: 14px;"></i>
+              </button>
+            </div>
+            <div style="overflow-x: auto;">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Conflict ID</th>
+                    <th>Requirement 1</th>
+                    <th>Requirement 2</th>
+                    <th>Relationship</th>
+                    <th>Severity</th>
+                    <th>Conflict Explanation</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody id="dashboard-recent-conflicts-tbody">
+                  <tr>
+                    <td colspan="7" style="text-align: center; color: var(--text-dim); padding: 36px;">
+                      No conflicts analyzed yet. Click <strong>Load Demo Workspace</strong> or upload documents to get started.
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+
+        <!-- 2. DOCUMENTS VIEW -->
+        <section class="page-view" id="view-documents">
+          <div class="page-header">
+            <div class="page-header-text">
+              <h3>Requirement Document Management</h3>
+              <p>Upload Software Requirements Specifications (SRS), Business Requirements Documents (BRD), or Functional Specifications.</p>
+            </div>
+          </div>
+
+          <!-- Dropzone -->
+          <div class="dropzone-container" id="dropzone">
+            <input type="file" id="file-upload-input" multiple accept=".pdf,.docx,.txt" style="display: none;">
+            <div class="dropzone-icon">
+              <i data-lucide="upload-cloud" style="width: 32px; height: 32px;"></i>
+            </div>
+            <h4 class="dropzone-title">Drag & Drop Requirement Files Here</h4>
+            <p class="dropzone-subtitle">or browse your system to upload specification documents</p>
+            <div class="dropzone-formats">
+              <span class="format-pill">PDF (.pdf)</span>
+              <span class="format-pill">Word Document (.docx)</span>
+              <span class="format-pill">Plain Text (.txt)</span>
+              <span class="format-pill">Max 25 MB</span>
+            </div>
+          </div>
+
+          <!-- Documents Table -->
+          <div class="table-container">
+            <div class="table-toolbar">
+              <h4 style="font-size: 1rem; font-weight: 700; color: #fff;">Uploaded Documents</h4>
+              <span id="doc-count-badge" class="badge badge-low">0 Documents</span>
+            </div>
+            <div style="overflow-x: auto;">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Document Name</th>
+                    <th>Format</th>
+                    <th>Upload Date</th>
+                    <th>Extracted Requirements</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="documents-tbody">
+                  <tr>
+                    <td colspan="6" style="text-align: center; color: var(--text-dim); padding: 36px;">
+                      No documents uploaded yet.
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+
+        <!-- 3. REQUIREMENTS VIEW -->
+        <section class="page-view" id="view-requirements">
+          <div class="page-header">
+            <div class="page-header-text">
+              <h3>Extracted Requirements Registry</h3>
+              <p>Search, filter, and inspect structured requirements clauses extracted across documents.</p>
+            </div>
+          </div>
+
+          <div class="table-container">
+            <div class="table-toolbar">
+              <div class="search-box">
+                <i data-lucide="search" style="width: 16px; height: 16px; color: var(--text-dim);"></i>
+                <input type="text" id="req-search-input" placeholder="Search requirement text, reference code, or section...">
+              </div>
+              <div class="filter-group">
+                <select class="filter-select" id="req-filter-doc">
+                  <option value="all">All Documents</option>
+                </select>
+                <select class="filter-select" id="req-filter-type">
+                  <option value="all">All Requirement Types</option>
+                  <option value="Authentication & Security">Authentication & Security</option>
+                  <option value="Authorization & Access">Authorization & Access</option>
+                  <option value="Business & Transaction">Business & Transaction</option>
+                  <option value="Performance & Scalability">Performance & Scalability</option>
+                  <option value="Functional Requirement">Functional Requirement</option>
+                </select>
+              </div>
+            </div>
+            <div style="overflow-x: auto;">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Reference</th>
+                    <th>Source Document</th>
+                    <th>Section</th>
+                    <th>Page</th>
+                    <th>Type</th>
+                    <th>Priority</th>
+                    <th>Requirement Text</th>
+                  </tr>
+                </thead>
+                <tbody id="requirements-tbody">
+                  <tr>
+                    <td colspan="7" style="text-align: center; color: var(--text-dim); padding: 36px;">
+                      No requirements extracted yet.
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+
+        <!-- 4. CONFLICT ANALYSIS VIEW -->
+        <section class="page-view" id="view-conflicts">
+          <div class="page-header">
+            <div class="page-header-text">
+              <h3>Semantic Conflict & Overlap Analysis</h3>
+              <p>In-depth contradiction detection, logical inconsistency analysis, and semantic overlap mapping.</p>
+            </div>
+            <div>
+              <button class="btn btn-primary" onclick="triggerAnalysis()">
+                <i data-lucide="refresh-cw" style="width: 16px; height: 16px;"></i>
+                <span>Re-Analyze All</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="table-container">
+            <div class="table-toolbar">
+              <div class="search-box">
+                <i data-lucide="search" style="width: 16px; height: 16px; color: var(--text-dim);"></i>
+                <input type="text" id="conflict-search-input" placeholder="Search conflicts, explanations, or clauses...">
+              </div>
+              <div class="filter-group">
+                <select class="filter-select" id="conflict-filter-severity">
+                  <option value="all">All Severities</option>
+                  <option value="Critical">Critical</option>
+                  <option value="High">High</option>
+                  <option value="Medium">Medium</option>
+                  <option value="Low">Low</option>
+                </select>
+                <select class="filter-select" id="conflict-filter-type">
+                  <option value="all">All Relationship Types</option>
+                  <option value="Direct Contradiction">Direct Contradiction</option>
+                  <option value="Partial Conflict">Partial Conflict</option>
+                  <option value="Semantic Overlap">Semantic Overlap</option>
+                  <option value="Duplicate">Duplicate</option>
+                  <option value="Ambiguity">Ambiguity</option>
+                </select>
+                <select class="filter-select" id="conflict-filter-doc">
+                  <option value="all">All Documents</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Conflict Table -->
+            <div style="overflow-x: auto;">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Conflict ID</th>
+                    <th>Requirement 1</th>
+                    <th>Requirement 2</th>
+                    <th>Type</th>
+                    <th>Severity</th>
+                    <th>Conflict Explanation</th>
+                    <th>Source Documents</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody id="conflicts-tbody">
+                  <tr>
+                    <td colspan="8" style="text-align: center; color: var(--text-dim); padding: 36px;">
+                      No conflicts analyzed yet.
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+
+        <!-- 5. CONFLICT REPORTS VIEW -->
+        <section class="page-view" id="view-reports">
+          <div class="page-header">
+            <div class="page-header-text">
+              <h3>Audit Reports & Executive Deliverables</h3>
+              <p>Generate, preview, and download formal requirement contradiction and overlap reports.</p>
+            </div>
+            <div style="display: flex; gap: 10px;">
+              <button class="btn btn-secondary" id="btn-export-csv">
+                <i data-lucide="download" style="width: 15px; height: 15px;"></i>
+                <span>Export CSV</span>
+              </button>
+              <button class="btn btn-secondary" id="btn-export-json">
+                <i data-lucide="code" style="width: 15px; height: 15px;"></i>
+                <span>Export JSON</span>
+              </button>
+              <button class="btn btn-secondary" id="btn-export-md">
+                <i data-lucide="file-code" style="width: 15px; height: 15px;"></i>
+                <span>Export Markdown</span>
+              </button>
+              <button class="btn btn-primary" onclick="window.print()">
+                <i data-lucide="printer" style="width: 15px; height: 15px;"></i>
+                <span>Print / Save PDF</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Report Preview Card -->
+          <div class="table-container" style="padding: 32px; background: var(--bg-card);">
+            <div id="report-rendered-content">
+              <!-- Rendered dynamically -->
+            </div>
+          </div>
+        </section>
+
+
+        <!-- 6. SETTINGS VIEW -->
+        <section class="page-view" id="view-settings">
+          <div class="page-header">
+            <div class="page-header-text">
+              <h3>System Settings & AI Orchestration</h3>
+              <p>Configure semantic comparison engines, API integrations, and authentication credentials.</p>
+            </div>
+          </div>
+
+          <div class="settings-section">
+            <h4>Active AI Semantic Provider</h4>
+            <p class="section-sub">Select the intelligence provider for requirement contradiction and overlap detection.</p>
+            
+            <div class="form-group">
+              <label>Analysis Engine</label>
+              <select class="form-control" id="settings-ai-provider" style="max-width: 380px;">
+                <option value="local">Built-in Semantic NLP Engine (Active - Offline, Fast, Zero API Cost)</option>
+                <option value="openai">OpenAI (GPT-4o-mini / GPT-4o)</option>
+                <option value="gemini">Google Gemini (Gemini 1.5 Flash)</option>
+              </select>
+              <div class="form-help">The built-in engine detects contradictions, numerical timing clashes, and synonyms without external API keys.</div>
+            </div>
+
+            <div style="margin-top: 20px;">
+              <button class="btn btn-primary" id="btn-save-ai-settings">Save Provider Settings</button>
+            </div>
+          </div>
+
+          <div class="settings-section">
+            <h4>Firebase Authentication Configuration</h4>
+            <p class="section-sub">Configure Firebase project credentials for Google & Apple login.</p>
+            <div class="form-group">
+              <label>Firebase Project ID</label>
+              <input type="text" class="form-control" id="settings-firebase-project" placeholder="requirement-analyzer-demo" readonly>
+            </div>
+            <div class="form-group">
+              <label>Authentication Status</label>
+              <div style="display: flex; align-items: center; gap: 8px; margin-top: 6px;">
+                <span class="badge badge-low" id="firebase-status-badge">Google & Apple Auth Active (Demo & Live Supported)</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+      </main>
+    </div>
+  </div>
+
+
+  <!-- Side-by-Side Requirement Comparison Modal (Section 7) -->
+  <div class="modal-overlay" id="comparison-modal">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div class="modal-title-area">
+          <span class="ref-tag" id="modal-conflict-id">C-001</span>
+          <h3 id="modal-conflict-type">Direct Contradiction</h3>
+          <span class="badge" id="modal-severity-badge">Critical</span>
+        </div>
+        <button class="btn-close-modal" id="btn-close-comparison-modal">
+          <i data-lucide="x" style="width: 20px; height: 20px;"></i>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <!-- Side-by-side grid -->
+        <div class="comparison-grid">
+          <!-- LEFT Requirement Card -->
+          <div class="comparison-card">
+            <div class="comparison-card-header">
+              <span class="ref-tag" id="modal-req1-ref">SRS-001</span>
+              <span class="badge badge-low" id="modal-req1-type">Authentication</span>
+            </div>
+            <div class="comparison-card-meta">
+              <div class="meta-row">
+                <span class="meta-label">Document:</span>
+                <span class="meta-val" id="modal-req1-doc">SRS.pdf</span>
+              </div>
+              <div class="meta-row">
+                <span class="meta-label">Section:</span>
+                <span class="meta-val" id="modal-req1-sec">Section 3.2</span>
+              </div>
+              <div class="meta-row">
+                <span class="meta-label">Page:</span>
+                <span class="meta-val" id="modal-req1-page">Page 18</span>
+              </div>
+            </div>
+            <div class="requirement-quote-box" id="modal-req1-text">
+              "Original requirement text goes here..."
+            </div>
+          </div>
+
+          <!-- RIGHT Requirement Card -->
+          <div class="comparison-card">
+            <div class="comparison-card-header">
+              <span class="ref-tag" id="modal-req2-ref">BRD-014</span>
+              <span class="badge badge-low" id="modal-req2-type">Security</span>
+            </div>
+            <div class="comparison-card-meta">
+              <div class="meta-row">
+                <span class="meta-label">Document:</span>
+                <span class="meta-val" id="modal-req2-doc">BRD.docx</span>
+              </div>
+              <div class="meta-row">
+                <span class="meta-label">Section:</span>
+                <span class="meta-val" id="modal-req2-sec">Section 2.4</span>
+              </div>
+              <div class="meta-row">
+                <span class="meta-label">Page:</span>
+                <span class="meta-val" id="modal-req2-page">Page 12</span>
+              </div>
+            </div>
+            <div class="requirement-quote-box" id="modal-req2-text">
+              "Original requirement text goes here..."
+            </div>
+          </div>
+        </div>
+
+        <!-- Semantic Conflict Details Breakdown -->
+        <div class="conflict-detail-section">
+          <div class="detail-block">
+            <h4><i data-lucide="git-commit" style="width: 14px; height: 14px;"></i> Why this is a conflict (Semantic Explanation)</h4>
+            <p id="modal-explanation">Semantic explanation...</p>
+          </div>
+
+          <div class="detail-block conflict-elements">
+            <h4><i data-lucide="alert-circle" style="width: 14px; height: 14px;"></i> Conflicting Elements & Differing Conditions</h4>
+            <p id="modal-conflicting-elements">Exact conditions that differ...</p>
+          </div>
+
+          <div class="detail-block clarification">
+            <h4><i data-lucide="check-circle-2" style="width: 14px; height: 14px;"></i> Suggested Neutral Clarification</h4>
+            <p id="modal-suggested-clarification">Suggested neutral clarification...</p>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+
+  <!-- Mandatory Authentication Modal Overlay (Section 3.A) -->
+  <div class="auth-screen-overlay" id="auth-modal">
+    <div class="auth-card">
+      <div class="auth-logo">
+        <i data-lucide="git-pull-request" style="width: 28px; height: 28px;"></i>
+      </div>
+      <h2>ReqConflict AI</h2>
+      <p class="auth-desc">Sign in with Firebase Authentication to access your secure requirements contradiction & overlap analysis workspace.</p>
+
+      <div class="auth-buttons-list">
+        <!-- Google Login -->
+        <button class="btn-oauth google" id="btn-login-google">
+          <svg viewBox="0 0 24 24">
+            <path fill="#EA4335" d="M12 5c1.6 0 3 .6 4.1 1.7l3.1-3.1C17.3 1.8 14.8 1 12 1 7.5 1 3.7 3.6 1.9 7.3l3.7 2.9C6.5 7.4 9 5 12 5z"/>
+            <path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.6h6.5c-.3 1.5-1.1 2.8-2.4 3.7l3.7 2.9c2.2-2 3.7-5 3.7-8.9z"/>
+            <path fill="#FBBC05" d="M5.6 14.8c-.2-.7-.4-1.5-.4-2.8s.2-2.1.4-2.8L1.9 6.3C.7 8.7 0 10.3 0 12s.7 3.3 1.9 5.7l3.7-2.9z"/>
+            <path fill="#34A853" d="M12 23c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3 0-5.5-2-6.4-4.8L1.9 16.4C3.7 20.4 7.5 23 12 23z"/>
+          </svg>
+          <span>Continue with Google</span>
+        </button>
+
+        <!-- Apple Login -->
+        <button class="btn-oauth apple" id="btn-login-apple">
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.42c.67-.82 1.13-1.95.99-3.1-.98.04-2.16.66-2.85 1.48-.61.71-1.15 1.87-.99 2.99 1.1.09 2.22-.57 2.85-1.37z"/>
+          </svg>
+          <span>Continue with Apple</span>
+        </button>
+      </div>
+
+      <div class="auth-divider">
+        <span>or evaluate system</span>
+      </div>
+
+      <!-- Quick Demo Login -->
+      <button class="btn btn-demo" style="width: 100%; padding: 12px;" id="btn-login-demo">
+        <i data-lucide="sparkles" style="width: 16px; height: 16px;"></i>
+        <span>Try Interactive Demo Workspace</span>
+      </button>
+
+      <div class="auth-footer-note">
+        Protected routes & isolated workspace data. Compliant with Firebase Authentication protocols.
+      </div>
+    </div>
+  </div>
+
+
+  <!-- Toast Notification Container -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- Application Logic Scripts -->
+  <script src="/static/js/firebase-config.js"></script>
+  <script src="/static/js/api.js"></script>
+  <script src="/static/js/auth.js"></script>
+  <script src="/static/js/dashboard.js"></script>
+  <script src="/static/js/documents.js"></script>
+  <script src="/static/js/requirements.js"></script>
+  <script src="/static/js/conflicts.js"></script>
+  <script src="/static/js/comparison.js"></script>
+  <script src="/static/js/reports.js"></script>
+  <script src="/static/js/settings.js"></script>
+  <script src="/static/js/app.js"></script>
+
+</body>
+</html>

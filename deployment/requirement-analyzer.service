@@ -1,0 +1,21 @@
+[Unit]
+Description=Requirement Conflict & Overlap Analyzer Service
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/requirement-analyzer
+ExecStart=/home/ubuntu/requirement-analyzer/venv/bin/python run_server.py
+Restart=always
+RestartSec=5s
+Environment="PATH=/home/ubuntu/requirement-analyzer/venv/bin"
+Environment="PORT=8000"
+Environment="HOST=0.0.0.0"
+Environment="ENVIRONMENT=production"
+
+# Resource Limits
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
